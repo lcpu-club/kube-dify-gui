@@ -1,0 +1,5 @@
+*.exe
+*.o
+dify-deployment-uxx.yaml
+
+build/

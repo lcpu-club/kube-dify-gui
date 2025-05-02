@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dify-api-storage
+  namespace: ${.Namespace}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-data-dify-postgres-0
+  namespace: ${.Namespace}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data-dify-redis-0
+  namespace: ${.Namespace}
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: weaviate-data-dify-weaviate-0
+  namespace: ${.Namespace}
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: dify-credentials
+  namespace: ${.Namespace}
