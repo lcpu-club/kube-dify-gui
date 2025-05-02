@@ -12,21 +12,30 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/lcpu-club/kube-dify-gui/internal/client"
+	"github.com/lcpu-club/kube-dify-gui/internal/i18n"
+	"github.com/lcpu-club/kube-dify-gui/internal/ui"
 )
 
 // ShowPortForward displays the port forward operation screen
 func ShowPortForward(window fyne.Window, client *client.Client, onBack func()) {
+	// Get translator from the current app
+	translator, _ := i18n.New(fyne.CurrentApp())
+
+	// Create UI components
+	components := ui.New(translator)
+
 	// Create input fields
 	addressEntry := widget.NewEntry()
-	addressEntry.SetPlaceHolder("Address (e.g., 0.0.0.0)")
+	addressEntry.SetPlaceHolder(translator.Translate("portforward.address.placeholder"))
 	addressEntry.SetText("127.0.0.1")
 
 	portEntry := widget.NewEntry()
-	portEntry.SetPlaceHolder("Port (e.g., 28080)")
+	portEntry.SetPlaceHolder(translator.Translate("portforward.port.placeholder"))
 	portEntry.SetText("28080")
 
 	// Create status label
-	statusLabel := widget.NewLabel("Status: Not forwarding")
+	statusText := fmt.Sprintf("Status: %s", translator.Translate("portforward.status.not_forwarding"))
+	statusLabel := widget.NewLabel(statusText)
 
 	// Create log display
 	logDisplay := widget.NewMultiLineEntry()
@@ -46,7 +55,7 @@ func ShowPortForward(window fyne.Window, client *client.Client, onBack func()) {
 			if err != nil {
 				if err != io.EOF && !strings.Contains(err.Error(), "file already closed") {
 					fyne.CurrentApp().SendNotification(&fyne.Notification{
-						Title:   "Port Forward Error",
+						Title:   translator.Translate("portforward.title"),
 						Content: err.Error(),
 					})
 				}
@@ -65,102 +74,120 @@ func ShowPortForward(window fyne.Window, client *client.Client, onBack func()) {
 	var startButton, stopButton, openButton *widget.Button
 
 	// Stop button
-	stopButton = widget.NewButtonWithIcon("Stop Port Forward", theme.MediaStopIcon(), func() {
-		if stopChan != nil {
-			close(stopChan)
-			stopChan = nil
-		}
+	stopButton = widget.NewButtonWithIcon(
+		translator.Translate("portforward.stop"),
+		theme.MediaStopIcon(),
+		func() {
+			if stopChan != nil {
+				close(stopChan)
+				stopChan = nil
+			}
 
-		if outStream != nil {
-			outStream.Close()
-			outStream = nil
-		}
+			if outStream != nil {
+				outStream.Close()
+				outStream = nil
+			}
 
-		if errStream != nil {
-			errStream.Close()
-			errStream = nil
-		}
+			if errStream != nil {
+				errStream.Close()
+				errStream = nil
+			}
 
-		isForwarding = false
-		statusLabel.SetText("Status: Not forwarding")
-		startButton.Enable()
-		stopButton.Disable()
-		openButton.Disable()
-	})
+			isForwarding = false
+			statusText := fmt.Sprintf("Status: %s", translator.Translate("portforward.status.not_forwarding"))
+			statusLabel.SetText(statusText)
+			startButton.Enable()
+			stopButton.Disable()
+			openButton.Disable()
+		},
+	)
 	stopButton.Disable()
 
 	// Start button
-	startButton = widget.NewButtonWithIcon("Start Port Forward", theme.MediaPlayIcon(), func() {
-		address := addressEntry.Text
-		port := portEntry.Text
+	startButton = widget.NewButtonWithIcon(
+		translator.Translate("portforward.start"),
+		theme.MediaPlayIcon(),
+		func() {
+			address := addressEntry.Text
+			port := portEntry.Text
 
-		if address == "" {
-			dialog.ShowError(fmt.Errorf("address cannot be empty"), window)
-			return
-		}
-
-		if port == "" {
-			dialog.ShowError(fmt.Errorf("port cannot be empty"), window)
-			return
-		}
-
-		// Disable start button and enable stop button
-		startButton.Disable()
-		stopButton.Enable()
-
-		// Clear log display
-		logDisplay.SetText("")
-
-		// Update status
-		statusLabel.SetText("Status: Starting port forward...")
-
-		// Run port forward in a goroutine
-		go func() {
-			var err error
-			stopChan, outStream, errStream, err = client.DoPortForward(address, port)
-
-			if err != nil {
-				dialog.ShowError(err, window)
-				statusLabel.SetText("Status: Failed to start port forward")
-				startButton.Enable()
-				stopButton.Disable()
-				openButton.Disable()
+			if address == "" {
+				dialog.ShowError(fmt.Errorf(translator.Translate("error.address_empty")), window)
 				return
 			}
 
-			isForwarding = true
-			statusLabel.SetText(fmt.Sprintf("Status: Forwarding to %s:%s", address, port))
+			if port == "" {
+				dialog.ShowError(fmt.Errorf(translator.Translate("error.port_empty")), window)
+				return
+			}
 
-			// Enable the open button
-			openButton.Enable()
+			// Disable start button and enable stop button
+			startButton.Disable()
+			stopButton.Enable()
 
-			// Start goroutines to read from streams
-			go updateLogs(outStream, "OUT")
-			go updateLogs(errStream, "ERR")
+			// Clear log display
+			logDisplay.SetText("")
 
-			// Add URL to log
-			logDisplay.SetText(fmt.Sprintf("Port forwarding started. Access Dify at: http://%s:%s\n\n", address, port))
-		}()
-	})
+			// Update status
+			statusText := fmt.Sprintf("Status: %s", translator.Translate("portforward.status.starting"))
+			statusLabel.SetText(statusText)
+
+			// Run port forward in a goroutine
+			go func() {
+				var err error
+				stopChan, outStream, errStream, err = client.DoPortForward(address, port)
+
+				if err != nil {
+					dialog.ShowError(err, window)
+					statusText := fmt.Sprintf("Status: %s", translator.Translate("portforward.status.failed"))
+					statusLabel.SetText(statusText)
+					startButton.Enable()
+					stopButton.Disable()
+					openButton.Disable()
+					return
+				}
+
+				isForwarding = true
+				forwardingText := fmt.Sprintf("Forwarding to %s:%s", address, port)
+				statusText := fmt.Sprintf("Status: %s", forwardingText)
+				statusLabel.SetText(statusText)
+
+				// Enable the open button
+				openButton.Enable()
+
+				// Start goroutines to read from streams
+				go updateLogs(outStream, "OUT")
+				go updateLogs(errStream, "ERR")
+
+				// Add URL to log
+				logDisplay.SetText(fmt.Sprintf("Port forwarding started. Access Dify at: http://%s:%s\n\n", address, port))
+			}()
+		},
+	)
 
 	// Open button
-	openButton = widget.NewButtonWithIcon("Open in Browser", theme.ComputerIcon(), func() {
-		address := addressEntry.Text
-		port := portEntry.Text
-		urlStr := fmt.Sprintf("http://%s:%s", address, port)
+	openButton = widget.NewButtonWithIcon(
+		translator.Translate("portforward.open"),
+		theme.ComputerIcon(),
+		func() {
+			address := addressEntry.Text
+			port := portEntry.Text
+			urlStr := fmt.Sprintf("http://%s:%s", address, port)
 
-		u, err := url.Parse(urlStr)
-		if err != nil {
-			dialog.ShowError(fmt.Errorf("invalid URL: %v", err), window)
-			return
-		}
+			u, err := url.Parse(urlStr)
+			if err != nil {
+				errorMsg := fmt.Sprintf("%s: %s", translator.Translate("error.invalid_url"), err.Error())
+				dialog.ShowError(fmt.Errorf(errorMsg), window)
+				return
+			}
 
-		fyne.CurrentApp().OpenURL(u)
-	})
+			fyne.CurrentApp().OpenURL(u)
+		},
+	)
 	openButton.Disable() // Disabled by default until port forwarding is active
 
 	// Create a back button
-	backButton := widget.NewButtonWithIcon("Back", theme.NavigateBackIcon(), func() {
+	backButton := components.CreateBackButton(func() {
 		// Stop port forwarding if active
 		if isForwarding && stopChan != nil {
 			close(stopChan)
@@ -168,29 +195,54 @@ func ShowPortForward(window fyne.Window, client *client.Client, onBack func()) {
 		onBack()
 	})
 
+	// Create header
+	header := components.CreateHeader(translator.Translate("portforward.title"))
+
+	// Create info card
+	infoCard := components.CreateInfoCard(
+		theme.InfoIcon(),
+		translator.Translate("portforward.instruction"),
+	)
+
+	// Create form for inputs
+	inputForm := container.NewGridWithColumns(2,
+		widget.NewLabel(translator.Translate("portforward.address")),
+		addressEntry,
+		widget.NewLabel(translator.Translate("portforward.port")),
+		portEntry,
+	)
+
+	// Create buttons container
+	buttonsContainer := container.NewHBox(
+		startButton,
+		stopButton,
+		openButton,
+	)
+
+	// Create log container with scroll
 	logScroll := container.NewScroll(logDisplay)
-	logScroll.SetMinSize(logDisplay.MinSize())
+	logScroll.SetMinSize(fyne.NewSize(0, 200))
+
+	// Create main content area
+	mainContent := container.NewVBox(
+		infoCard,
+		inputForm,
+		buttonsContainer,
+		statusLabel,
+		widget.NewLabel(translator.Translate("portforward.logs")),
+		logScroll,
+	)
+
+	// Create card for main content
+	contentCard := components.CreateCard("", mainContent)
 
 	// Create layout
 	content := container.NewVBox(
-		widget.NewLabel("Port Forward"),
-		widget.NewLabel("Forward the Dify application to a local port"),
-		container.NewGridWithColumns(2,
-			widget.NewLabel("Address:"),
-			addressEntry,
-			widget.NewLabel("Port:"),
-			portEntry,
-		),
-		container.NewHBox(
-			startButton,
-			stopButton,
-			openButton,
-		),
-		statusLabel,
-		widget.NewLabel("Logs:"),
-		logScroll,
+		header,
+		widget.NewSeparator(),
+		contentCard,
 		backButton,
 	)
 
-	window.SetContent(content)
+	window.SetContent(container.NewPadded(content))
 }

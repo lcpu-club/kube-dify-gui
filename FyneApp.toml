@@ -1,8 +1,8 @@
 Website = "https://hpcgame.pku.edu.cn"
 
 [Details]
-Icon = "Icon.png"
-Name = "Kube Dify GUI"
-ID = "club.lcpu.kube-dify-gui"
-Version = "0.1.0"
-Build = 1
+  Icon = "icon.png"
+  Name = "Kube Dify GUI"
+  ID = "club.lcpu.kube-dify-gui"
+  Version = "0.1.0"
+  Build = 7

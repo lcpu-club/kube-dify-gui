@@ -1,5 +1,6 @@
 *.exe
 *.o
+*.tar.xz
 dify-deployment-uxx.yaml
 
 build/
